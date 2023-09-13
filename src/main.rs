@@ -1,10 +1,10 @@
 use std::fs::File;
-use std::io::Write;
+use std::io::{stderr, Write};
 use std::iter::once;
 use std::path::PathBuf;
 use std::process::Command;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{arg, Args, Parser, Subcommand};
 use regex::Regex;
 
 #[derive(Parser)]
@@ -30,11 +30,15 @@ enum NewError {
     CannotFindPattern,
     CannotCreateFile,
     CannotWriteToFile,
+    CargoFailed(String),
 }
 fn new(args: NewArgs) -> Result<(), NewError> {
     let re = Regex::new(r#"<span>(\d+) kyu</span></div></div><h4 class="ml-2 mb-3">(.+?)</h4>"#)
         .unwrap();
-    let response = reqwest::blocking::get(&args.url).map_err(|_| NewError::CannotFetchPage)?;
+    let response = reqwest::blocking::get(&args.url)
+        .map_err(|_| NewError::CannotFetchPage)?
+        .error_for_status()
+        .map_err(|_| NewError::BrokenPage)?;
     let text = response.text().map_err(|_| NewError::BrokenPage)?;
     let (_, [kyu, name]) = re
         .captures_iter(&text)
@@ -52,13 +56,23 @@ fn new(args: NewArgs) -> Result<(), NewError> {
         .chain(once('-'))
         .chain(kyu.chars())
         .collect::<String>();
-    Command::new("cargo")
+    let output = Command::new("cargo")
         .arg("new")
         .arg(&project_name)
         .output()
-        .expect("Failed to execute command");
-    let mut url_file = PathBuf::from(&project_name);
-    url_file.push("url.txt");
+        .map_err(|e| NewError::CargoFailed(e.to_string()))?;
+    if !output.status.success() {
+        _ = stderr().write_all(&output.stderr);
+        return Err(NewError::CargoFailed(format!(
+            "non-zero exit status: {:?}",
+            output.status.code()
+        )));
+    }
+    let url_file = {
+        let mut tmp = PathBuf::from(&project_name);
+        tmp.push("url.txt");
+        tmp
+    };
     let mut file = File::create(url_file).map_err(|_| NewError::CannotCreateFile)?;
     file.write_all(&args.url.as_bytes())
         .map_err(|_| NewError::CannotWriteToFile)?;
