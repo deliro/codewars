@@ -83,7 +83,7 @@ impl AssemblerInterpreter {
         let mut registers: HashMap<&str, i64> = HashMap::new();
         let mut stack = vec![];
         let mut buf = Vec::with_capacity(3);
-        let mut output = None;
+        let mut output: Option<String> = None;
         let mut last_cmp = None;
         let mut idx: usize = 0;
         loop {
@@ -150,14 +150,20 @@ impl AssemblerInterpreter {
                         }
                     }
 
-                    output = Some(
-                        args.into_iter()
-                            .map(|arg| match arg {
-                                ArgKind::Text(txt) => txt,
-                                ArgKind::Var(c) => resolve(&c.to_string(), &registers).to_string(),
-                            })
-                            .collect::<String>(),
-                    );
+                    let out_part = args
+                        .into_iter()
+                        .map(|arg| match arg {
+                            ArgKind::Text(txt) => txt,
+                            ArgKind::Var(c) => resolve(&c.to_string(), &registers).to_string(),
+                        })
+                        .collect::<String>();
+                    output = match output.take() {
+                        None => Some(out_part),
+                        Some(mut v) => {
+                            v.push_str(&out_part);
+                            Some(v)
+                        }
+                    };
                     idx += 1;
                 }
                 ["end"] => break,
@@ -166,7 +172,6 @@ impl AssemblerInterpreter {
                 }
             }
         }
-
         output
     }
 }
