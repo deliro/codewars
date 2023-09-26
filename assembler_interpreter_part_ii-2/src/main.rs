@@ -89,7 +89,7 @@ impl AssemblerInterpreter {
         loop {
             let inst = program.get(idx)?;
             buf.clear();
-            buf.extend(inst.split_whitespace());
+            buf.extend(inst.split_whitespace().take(3));
             match buf[..] {
                 ["mov", x, y] if is_register(x) => {
                     registers.insert(x, resolve(y, &registers));
