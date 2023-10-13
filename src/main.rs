@@ -4,7 +4,7 @@ use std::iter::once;
 use std::path::PathBuf;
 use std::process::Command;
 
-use clap::{arg, Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use regex::Regex;
 
 #[derive(Parser)]
