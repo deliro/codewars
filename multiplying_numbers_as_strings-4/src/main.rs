@@ -1,5 +1,33 @@
+use itertools::Itertools;
+
 fn multiply(a: &str, b: &str) -> String {
-    todo!();
+    let mut results: Vec<u32> = vec![0; a.len() + b.len()];
+    a.chars()
+        .rev()
+        .enumerate()
+        .cartesian_product(b.chars().rev().enumerate())
+        .for_each(|((i, ch1), (j, ch2))| {
+            results[i + j] += ch1.to_digit(10).unwrap() * ch2.to_digit(10).unwrap()
+        });
+
+    let mut carry: u32 = 0;
+    results.iter_mut().for_each(|v| {
+        *v += carry;
+        carry = *v / 10;
+        *v %= 10;
+    });
+
+    let res = results
+        .into_iter()
+        .rev()
+        .map(|v| char::from_digit(v, 10).unwrap())
+        .skip_while(|v| *v == '0')
+        .collect::<String>();
+    if res.len() == 0 {
+        "0".to_string()
+    } else {
+        res
+    }
 }
 
 // Add your tests here.
